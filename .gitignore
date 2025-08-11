@@ -1,0 +1,89 @@
+# ###################################################################
+# ## Build & Artifact Directories
+# ###################################################################
+
+# Primary build output directory
+/build/
+
+# Directory for fuzzer crash reports
+/crashes/
+
+# Fuzzer corpus
+/corpus/
+
+# clangd cache
+/.cache/
+
+# ###################################################################
+# ## Generated Files
+# ###################################################################
+
+# CMake-generated files that might appear in the root directory
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# Build system files
+Makefile
+*.ninja
+.ninja_deps
+.ninja_log
+
+# Benchmark results, as specified by '--benchmark_out'
+results.json
+results.csv
+
+# Generic fuzzer output files (in case -artifact_prefix is not used)
+crash-*
+leak-*
+timeout-*
+fuzz-*.log
+
+# LLVM Code Coverage (llvm-cov)
+*.profraw
+*.profdata
+/coverage/
+
+# ###################################################################
+# ## IDE & Editor Configuration
+# ###################################################################
+
+# Helix
+.helix/
+
+# Visual Studio Code
+.vscode/
+
+# CLion / IntelliJ
+.idea/
+
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Compile Commands
+compile_commands.json
+
+# ###################################################################
+# ## OS-specific files
+# ###################################################################
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Linux / Vim temporary files
+*~
+*.swp
+*.swo

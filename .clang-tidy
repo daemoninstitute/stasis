@@ -1,0 +1,19 @@
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  misc-*
+
+WarningsAsErrors: '*'
+
+CheckOptions:
+  - key: performance-no-except-move-constructor.CheckMoveCtor
+    value: true
+  - key: performance-no-except-move-constructor.CheckMoveAssign
+    value: true
