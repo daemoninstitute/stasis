@@ -1,4 +1,4 @@
-# # Security Policy
+# Security Policy
 
 The `stasis` project takes all security vulnerabilities seriously. Thank you for your efforts to improve its security. Your efforts to disclose your findings responsibly are greatly appreciated.
 
