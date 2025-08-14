@@ -66,12 +66,12 @@ class KeyValueStore {
 public:
   struct Success {};
 
-  auto handle_begin() -> std::expected<Success, AppError> {
+  [[nodiscard]] auto handle_begin() -> std::expected<Success, AppError> {
     transactions_.emplace_back();
     return Success{};
   }
 
-  auto handle_commit() -> std::expected<Success, AppError> {
+  [[nodiscard]] auto handle_commit() -> std::expected<Success, AppError> {
     if (transactions_.empty()) {
       return std::unexpected(AppError::NoActiveTransaction);
     }
@@ -88,7 +88,7 @@ public:
     return Success{};
   }
 
-  auto handle_rollback() -> std::expected<Success, AppError> {
+  [[nodiscard]] auto handle_rollback() -> std::expected<Success, AppError> {
     if (transactions_.empty()) {
       return std::unexpected(AppError::NoActiveTransaction);
     }
@@ -96,7 +96,8 @@ public:
     return Success{};
   }
 
-  auto handle_set(Key key, Value value) -> std::expected<Success, AppError> {
+  [[nodiscard]] auto handle_set(Key key, Value value)
+      -> std::expected<Success, AppError> {
     auto key_str = std::string(key.value);
     auto value_str = std::string(value.value);
 
@@ -109,7 +110,27 @@ public:
     return Success{};
   }
 
-  auto handle_get(std::string_view key) const
+  [[nodiscard]] auto handle_get(std::string_view key) const
+      -> std::expected<std::string, AppError> {
+    return get_value(key);
+  }
+
+  [[nodiscard]] auto handle_delete(std::string_view key)
+      -> std::expected<Success, AppError> {
+    if (!key_exists(key)) {
+      return std::unexpected(AppError::KeyNotFound);
+    }
+
+    if (transactions_.empty()) {
+      main_store_.erase(std::string(key));
+    } else {
+      transactions_.back().insert_or_assign(std::string(key), std::nullopt);
+    }
+    return Success{};
+  }
+
+private:
+  [[nodiscard]] auto get_value(std::string_view key) const
       -> std::expected<std::string, AppError> {
     for (const auto &transaction : transactions_ | std::views::reverse) {
       if (const auto iterator = transaction.find(key);
@@ -130,28 +151,8 @@ public:
     return std::unexpected(AppError::KeyNotFound);
   }
 
-  auto handle_delete(std::string_view key) -> std::expected<Success, AppError> {
-    if (!key_exists(key)) {
-      return std::unexpected(AppError::KeyNotFound);
-    }
-
-    if (transactions_.empty()) {
-      main_store_.erase(std::string(key));
-    } else {
-      transactions_.back().insert_or_assign(std::string(key), std::nullopt);
-    }
-    return Success{};
-  }
-
-private:
-  auto key_exists(std::string_view key) const -> bool {
-    for (const auto &transaction : transactions_ | std::views::reverse) {
-      if (const auto iterator = transaction.find(key);
-          iterator != transaction.end()) {
-        return iterator->second.has_value();
-      }
-    }
-    return main_store_.contains(key);
+  [[nodiscard]] auto key_exists(std::string_view key) const -> bool {
+    return get_value(key).has_value();
   }
 
   static void apply_changes_to_store(MainStore &store,
