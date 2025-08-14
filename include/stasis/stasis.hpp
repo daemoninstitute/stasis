@@ -80,9 +80,10 @@ public:
     transactions_.pop_back();
 
     if (transactions_.empty()) {
-      apply_changes_to_store(main_store_, committed_tx);
+      apply_changes_to_store(main_store_, std::move(committed_tx));
     } else {
-      apply_changes_to_transaction(transactions_.back(), committed_tx);
+      apply_changes_to_transaction(transactions_.back(),
+                                   std::move(committed_tx));
     }
 
     return Success{};
@@ -167,10 +168,10 @@ private:
   }
 
   static void apply_changes_to_store(MainStore &store,
-                                     const TransactionChanges &changes) {
-    for (const auto &[key, value_opt] : changes) {
+                                     TransactionChanges changes) {
+    for (auto &&[key, value_opt] : changes) {
       if (value_opt.has_value()) {
-        store.insert_or_assign(key, *value_opt);
+        store.insert_or_assign(key, std::move(*value_opt));
       } else {
         store.erase(key);
       }
@@ -178,9 +179,9 @@ private:
   }
 
   static void apply_changes_to_transaction(TransactionChanges &parent_tx,
-                                           const TransactionChanges &child_tx) {
-    for (const auto &[key, value_opt] : child_tx) {
-      parent_tx.insert_or_assign(key, value_opt);
+                                           TransactionChanges child_tx) {
+    for (auto &&[key, value_opt] : child_tx) {
+      parent_tx.insert_or_assign(key, std::move(value_opt));
     }
   }
 
