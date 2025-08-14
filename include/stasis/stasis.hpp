@@ -117,7 +117,18 @@ public:
 
   [[nodiscard]] auto handle_delete(std::string_view key)
       -> std::expected<Success, AppError> {
-    if (!key_exists(key)) {
+    for (const auto &transaction : transactions_ | std::views::reverse) {
+      if (const auto iterator = transaction.find(key);
+          iterator != transaction.end()) {
+        if (!iterator->second.has_value()) {
+          return std::unexpected(AppError::KeyNotFound);
+        }
+        transactions_.back().insert_or_assign(std::string(key), std::nullopt);
+        return Success{};
+      }
+    }
+
+    if (!main_store_.contains(key)) {
       return std::unexpected(AppError::KeyNotFound);
     }
 
