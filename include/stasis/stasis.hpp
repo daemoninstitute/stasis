@@ -165,10 +165,6 @@ private:
     return std::unexpected(AppError::KeyNotFound);
   }
 
-  [[nodiscard]] auto key_exists(std::string_view key) const -> bool {
-    return get_value(key).has_value();
-  }
-
   static void apply_changes_to_store(MainStore &store,
                                      TransactionChanges changes) {
     for (auto &&[key, value_opt] : changes) {
