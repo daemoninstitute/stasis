@@ -136,7 +136,12 @@ public:
     }
 
     if (transactions_.empty()) {
-      main_store_.erase(std::string(key));
+      // transparent erase is not universally available
+      // find-then-erase pattern used in its place for allocation-free deletion
+      if (const auto iterator = main_store_.find(key);
+          iterator != main_store_.end()) {
+        main_store_.erase(iterator);
+      }
     } else {
       transactions_.back().insert_or_assign(std::string(key), std::nullopt);
     }
