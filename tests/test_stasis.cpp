@@ -15,8 +15,14 @@
  * limitations under the License.
  */
 
-#include "stasis/stasis.hpp"
 #include <gtest/gtest.h>
+
+#include <atomic>
+#include <memory>
+#include <random>
+#include <thread>
+
+#include "stasis/stasis.hpp"
 
 class KeyValueStoreTest : public ::testing::Test {
 protected:
@@ -154,4 +160,89 @@ TEST_F(KeyValueStoreTest, ErrorsOnNoActiveTransaction) {
   auto rollback_result = kv_store.handle_rollback();
   ASSERT_FALSE(rollback_result.has_value());
   EXPECT_EQ(rollback_result.error(), stasis::AppError::NoActiveTransaction);
+}
+
+TEST_F(KeyValueStoreTest, ConcurrentSetAndGet) {
+  auto store = std::make_shared<stasis::KeyValueStore>();
+  constexpr int num_threads = 50;
+  std::vector<std::thread> threads;
+  threads.reserve(num_threads);
+
+  for (int i = 0; i < num_threads; ++i) {
+    threads.emplace_back([store, i]() {
+      const auto key = "key" + std::to_string(i);
+      const auto value = "value" + std::to_string(i);
+      auto result = store->handle_set({key}, {value});
+      ASSERT_TRUE(result.has_value());
+    });
+  }
+
+  for (auto &thread : threads) {
+    thread.join();
+  }
+
+  for (int i = 0; i < num_threads; ++i) {
+    const auto key = "key" + std::to_string(i);
+    const auto expected_value = "value" + std::to_string(i);
+    auto result = store->handle_get(key);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(*result, expected_value);
+  }
+}
+
+TEST_F(KeyValueStoreTest, ConcurrentReadWriteDeleteStressTest) {
+  auto store = std::make_shared<stasis::KeyValueStore>();
+  constexpr int num_keys = 100;
+  constexpr int num_threads = 10;
+  constexpr int operations_per_thread = 1000;
+
+  for (int i = 0; i < num_keys; ++i) {
+    const auto key = "key" + std::to_string(i);
+    const auto value = "initial_value";
+    ASSERT_TRUE(store->handle_set({key}, {value}));
+  }
+
+  std::vector<std::thread> threads;
+  threads.reserve(num_threads);
+
+  for (int i = 0; i < num_threads; ++i) {
+    threads.emplace_back([store, i]() {
+      std::mt19937 gen(std::random_device{}() + i);
+      std::uniform_int_distribution<> key_dist(0, num_keys - 1);
+      std::uniform_int_distribution<> op_dist(0, 2);
+
+      for (int j = 0; j < operations_per_thread; ++j) {
+        const auto key = "key" + std::to_string(key_dist(gen));
+        const int operation = op_dist(gen);
+
+        switch (operation) {
+        case 0: {
+          (void)store->handle_get(key);
+          break;
+        }
+        case 1: {
+          const auto value = "value_thread_" + std::to_string(i);
+          auto result = store->handle_set({key}, {value});
+          ASSERT_TRUE(result.has_value());
+          break;
+        }
+        case 2: {
+          auto result = store->handle_delete(key);
+          ASSERT_TRUE(result.has_value() ||
+                      result.error() == stasis::AppError::KeyNotFound);
+          break;
+        }
+        }
+      }
+    });
+  }
+
+  for (auto &thread : threads) {
+    thread.join();
+  }
+
+  for (int i = 0; i < num_keys; ++i) {
+    const auto key = "key" + std::to_string(i);
+    (void)store->handle_get(key);
+  }
 }

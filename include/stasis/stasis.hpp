@@ -20,8 +20,10 @@
 #include <cstdint>
 #include <expected>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <ranges>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -61,11 +63,13 @@ public:
   struct Success {};
 
   [[nodiscard]] auto handle_begin() -> std::expected<Success, AppError> {
+    std::unique_lock lock(mutex_);
     transactions_.emplace_back();
     return Success{};
   }
 
   [[nodiscard]] auto handle_commit() -> std::expected<Success, AppError> {
+    std::unique_lock lock(mutex_);
     if (transactions_.empty()) {
       return std::unexpected(AppError::NoActiveTransaction);
     }
@@ -84,6 +88,7 @@ public:
   }
 
   [[nodiscard]] auto handle_rollback() -> std::expected<Success, AppError> {
+    std::unique_lock lock(mutex_);
     if (transactions_.empty()) {
       return std::unexpected(AppError::NoActiveTransaction);
     }
@@ -93,6 +98,7 @@ public:
 
   [[nodiscard]] auto handle_set(Key key, Value value)
       -> std::expected<Success, AppError> {
+    std::unique_lock lock(mutex_);
     auto key_str = std::string(key.value);
     auto value_str = std::string(value.value);
 
@@ -107,11 +113,13 @@ public:
 
   [[nodiscard]] auto handle_get(std::string_view key) const
       -> std::expected<std::string, AppError> {
+    std::shared_lock lock(mutex_);
     return get_value(key);
   }
 
   [[nodiscard]] auto handle_delete(std::string_view key)
       -> std::expected<Success, AppError> {
+    std::unique_lock lock(mutex_);
     for (const auto &transaction : transactions_ | std::views::reverse) {
       if (const auto iterator = transaction.find(key);
           iterator != transaction.end()) {
@@ -181,6 +189,7 @@ private:
 
   MainStore main_store_;
   std::vector<TransactionChanges> transactions_;
+  mutable std::shared_mutex mutex_;
 };
 
 } // namespace stasis
