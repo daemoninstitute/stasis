@@ -17,10 +17,11 @@
 
 #include <gtest/gtest.h>
 
-#include <atomic>
+#include <format>
 #include <memory>
 #include <random>
 #include <thread>
+#include <utility>
 
 #include "stasis/stasis.hpp"
 
@@ -170,8 +171,8 @@ TEST_F(KeyValueStoreTest, ConcurrentSetAndGet) {
 
   for (int i = 0; i < num_threads; ++i) {
     threads.emplace_back([store, i]() {
-      const auto key = "key" + std::to_string(i);
-      const auto value = "value" + std::to_string(i);
+      const auto key = std::format("key{}", i);
+      const auto value = std::format("value{}", i);
       auto result = store->handle_set({key}, {value});
       ASSERT_TRUE(result.has_value());
     });
@@ -182,8 +183,8 @@ TEST_F(KeyValueStoreTest, ConcurrentSetAndGet) {
   }
 
   for (int i = 0; i < num_threads; ++i) {
-    const auto key = "key" + std::to_string(i);
-    const auto expected_value = "value" + std::to_string(i);
+    const auto key = std::format("key{}", i);
+    const auto expected_value = std::format("value{}", i);
     auto result = store->handle_get(key);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(*result, expected_value);
@@ -197,8 +198,8 @@ TEST_F(KeyValueStoreTest, ConcurrentReadWriteDeleteStressTest) {
   constexpr int operations_per_thread = 1000;
 
   for (int i = 0; i < num_keys; ++i) {
-    const auto key = "key" + std::to_string(i);
-    const auto value = "initial_value";
+    const auto key = std::format("key{}", i);
+    const auto value = std::format("initial_value{}", i);
     ASSERT_TRUE(store->handle_set({key}, {value}));
   }
 
@@ -212,16 +213,16 @@ TEST_F(KeyValueStoreTest, ConcurrentReadWriteDeleteStressTest) {
       std::uniform_int_distribution<> op_dist(0, 2);
 
       for (int j = 0; j < operations_per_thread; ++j) {
-        const auto key = "key" + std::to_string(key_dist(gen));
+        const auto key = std::format("key{}", key_dist(gen));
         const int operation = op_dist(gen);
 
         switch (operation) {
         case 0: {
-          (void)store->handle_get(key);
+          std::ignore = store->handle_get(key);
           break;
         }
         case 1: {
-          const auto value = "value_thread_" + std::to_string(i);
+          const auto value = std::format("value_thread_{}", i);
           auto result = store->handle_set({key}, {value});
           ASSERT_TRUE(result.has_value());
           break;
@@ -232,6 +233,8 @@ TEST_F(KeyValueStoreTest, ConcurrentReadWriteDeleteStressTest) {
                       result.error() == stasis::AppError::KeyNotFound);
           break;
         }
+        default:
+          std::unreachable();
         }
       }
     });
@@ -242,7 +245,7 @@ TEST_F(KeyValueStoreTest, ConcurrentReadWriteDeleteStressTest) {
   }
 
   for (int i = 0; i < num_keys; ++i) {
-    const auto key = "key" + std::to_string(i);
-    (void)store->handle_get(key);
+    const auto key = std::format("key{}", i);
+    std::ignore = store->handle_get(key);
   }
 }
