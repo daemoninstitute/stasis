@@ -1,0 +1,52 @@
+name: Initial CI Setup
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    name: ${{ matrix.compiler.name }} on Ubuntu
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - name: GCC
+            c: gcc
+            cxx: g++
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            clang-tidy \
+            g++
+
+      - name: Configure CMake
+        env:
+          CC: ${{ matrix.compiler.c }}
+          CXX: ${{ matrix.compiler.cxx }}
+        run: |
+          cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Project
+        run: cmake --build build --config Release
+
+      - name: Run Tests
+        working-directory: build
+        run: ctest -C Release --output-on-failure
